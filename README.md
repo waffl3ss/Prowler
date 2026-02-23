@@ -21,7 +21,7 @@ A single-binary OSINT toolkit written in Go for authorized security assessments.
 | Feature | Description |
 |---------|-------------|
 | **Browser Dorking** | Uses go-rod with stealth (anti-detection) to search Google, Bing, and DuckDuckGo |
-| **CAPTCHA Handling** | Headed mode for manual CAPTCHA solving, engine-specific detection |
+| **CAPTCHA Handling** | Headed mode with "Press ENTER" prompt before launch, engine-specific CAPTCHA detection with timeout |
 | **Document Download** | Concurrent downloads with MD5 hashing (PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX) |
 | **Metadata Extraction** | Native Go extractors for PDF (pdfcpu) and Office XML (archive/zip), optional exiftool |
 | **Intelligence** | Extracts usernames, software versions, creation dates with software name filtering |
@@ -39,13 +39,6 @@ go build -o prowler .
 # Cross-compile all platforms
 make all
 ```
-
-### Pre-built Binaries
-
-After `make all`, binaries are in `build/`:
-- `prowler-linux-amd64` / `prowler-linux-arm64`
-- `prowler-darwin-amd64` / `prowler-darwin-arm64`
-- `prowler-windows-amd64.exe`
 
 ### Requirements
 - Go 1.22+ (build only)
@@ -73,6 +66,9 @@ sudo apt-get install libimage-exiftool-perl
 
 # Skip bruteforce entirely
 ./prowler recon example.com --no-bruteforce
+
+# Verbose output (show per-phase details)
+./prowler recon example.com -v
 ```
 
 ### Scan (Phase 6 - Document Metadata)
@@ -80,7 +76,7 @@ sudo apt-get install libimage-exiftool-perl
 # Headless mode, all search engines
 ./prowler scan example.com
 
-# Headed mode for manual CAPTCHA solving
+# Headed mode for manual CAPTCHA solving (prompts before browser launch)
 ./prowler scan example.com --headed
 
 # Slower queries, Google only
@@ -88,6 +84,9 @@ sudo apt-get install libimage-exiftool-perl
 
 # Skip search, process a URL list directly
 ./prowler scan --url-list urls.txt
+
+# Verbose output (show per-document metadata + summary table)
+./prowler scan example.com -v
 ```
 
 ### Full Pipeline
@@ -102,8 +101,8 @@ sudo apt-get install libimage-exiftool-perl
 ### Global Options
 ```
 -o, --output     Output directory (default: prowler_output)
--v, --verbose    Show informational output
-    --debug      Show debug output
+-v, --verbose    Show detailed per-phase output
+    --debug      Show debug output (zerolog)
 -t, --threads    Max concurrent goroutines (default: 20)
     --timeout    Network timeout in seconds (default: 30)
 ```
@@ -140,7 +139,7 @@ Results are saved to `prowler_output/` by default:
 
 ```
 prowler_output/
-├── results.json                # Unified results
+├── results.json                # Unified results (all phases)
 ├── phase1_domains.json         # Domain details with IPs, registrar, netblocks
 ├── phase1_domains.txt          # Plain domain list
 ├── phase1_domains.csv          # Domain summary table
@@ -151,10 +150,31 @@ prowler_output/
 ├── phase4_urls.txt             # Web app URL list
 ├── phase5_cloud_keywords.txt   # Keywords for cloud_enum
 ├── metadata_full.json          # Full document metadata
-├── metadata_summary.csv        # Metadata summary table
-├── extracted_usernames.txt     # Extracted usernames
+├── metadata_summary.csv        # Metadata CSV (URL, type, hash, author, software, dates, title)
+├── extracted_usernames.txt     # Unique usernames from documents
+├── extracted_software.txt      # Unique software from documents
 └── documents/                  # Downloaded document files
 ```
+
+### Output Format Tags
+
+Prowler uses tagged output for clean readability:
+
+| Tag | Meaning |
+|-----|---------|
+| `[i]` | Info header (tool start/complete, section transitions) |
+| `[+]` | Phase header (phase start) |
+| `[v]` | Verbose detail section (only with `-v`) |
+| `[!]` | Warning (CAPTCHA detected, errors) |
+| `--` | Detail/result line |
+
+### Verbosity Levels
+
+| Flag | Level | Shows |
+|------|-------|-------|
+| *(none)* | Quiet | Phase summaries, stats, final results |
+| `-v` | Verbose | Per-phase details, per-document metadata, summary table, intelligence breakdown |
+| `--debug` | Debug | All verbose output + zerolog debug messages |
 
 ## License
 
